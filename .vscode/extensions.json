@@ -1,0 +1,12 @@
+{
+  // eslint, prettier 필수 설치할 것
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "fallenmax.styled-components-extractor",
+    "bradlc.vscode-tailwindcss",
+    "jock.svg",
+  ],
+  // List of extensions recommended by VS Code that should not be recommended for users of this workspace.
+  "unwantedRecommendations": []
+}
