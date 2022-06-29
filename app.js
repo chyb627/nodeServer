@@ -1,53 +1,61 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
+const morgan = require('morgan');
 const path = require('path');
+const session = require('express-session');
+const nunjucks = require('nunjucks');
+const dotenv = require('dotenv');
+
+dotenv.config();
+const pageRouter = require('./routes/page');
 
 const app = express();
 
-app.set('port', process.env.PORT || 3000);
+app.set('port', process.env.PORT || 8001);
+app.set('view engine', 'html');
+nunjucks.configure('views', {
+  express: app,
+  watch: true,
+});
 
-// 미들웨어는 중복이되는 것을 제거하기 위해 사용
+// 요청과 응답을 기록하는 라우터, 에러로그 확인시 사용
+// 개발에서는 dev, 운영에서는 combined를 쓴다.
+// combined를 쓰면 더 자세히 로그를 확인할 수 있다.
+app.use(morgan('dev'));
+// app.use(morgan('combined'));
+app.use(cookieParser(process.env.COOKIE_SECRET));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+// app.use('요청경로', express.static('실제경로'));
+// 요청경로 localhost:3000/index.html
+// 실제경로 /public/index.html
+app.use('/', express.static(path.join(__dirname, 'public')));
+
+app.use(session({
+  resave: false,
+  saveUninitialized: false,
+  secret: process.env.COOKIE_SECRET,
+  cookie: {
+    httpOnly: true,
+    secure: false,
+  },
+}));
+
+app.use('/', pageRouter);
+
 app.use((req, res, next) => {
-  console.log('모든 요청에 실행하고 싶어요');
-  next();
-}
-  // ,(req,res)=> {throw new Error('에러임');}
-)
-
-// 라우터
-app.get('/', (req, res) => {
-  // res.send('hello express');
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-app.post('/', (req, res) => {
-  res.send('hello express');
-  // === res.status(200).send('hello express');
-});
-app.get('/about', (req, res) => {
-  res.send('hello about');
-});
-app.get('/category/js', (req, res) => {
-  res.send('hello JavaScript!');
+  const error = new Error(`${req.method} ${req.url} 라우터가 없습니다`);
+  error.status = 404;
+  next(error);
 });
 
-//와일드 카드 
-//위에서 부터 실행되므로 /category/js 일경우는 위 아닌경우 와일드카드로 빠짐.
-app.get('/category/:name', (req, res) => {
-  res.send(`hello ${req.params.name}`);
-});
-
-// 404처리 미들웨어 (라우터밑, 에러처리위에 위치시킨다)
-// 라우터 전부다 검색했는데 안떴으면 404이므로.
-app.use((req, res, next) => {
-  // res.send('404 Error')
-  res.status(404).send('404 Error')
-})
-
-//에러 처리, 에러 미들웨어, 파라미터 4개 반드시 다 넣어야한다. 라우터 맨 밑에 추가.
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).send('실제 화면에 보여줄 에러문구 대채 내용 삽입');
-})
+  res.locals.message = err.message;
+  res.locals.error = process.env.NODE_ENV !== 'production' ? err : {};
+  res.status(err.status || 500);
+  res.render('error');
+});
 
-app.listen(3000, () => {
-  console.log('익스프레스 서버 실행');
+app.listen(app.get('port'), () => {
+  console.log(app.get('port'), '번 포트에서 대기 중');
 });
